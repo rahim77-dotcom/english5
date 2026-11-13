@@ -1347,6 +1347,7 @@ const WORDS=[];
 WORDSETS.forEach(([id,sec,name,raw])=>raw.split("\n").forEach(l=>{const p=l.split("|");if(p.length>=2&&p[0].trim())WORDS.push({k:"w:"+id+":"+p[0].trim(),en:p[0].trim(),ru:p[1].trim(),set:id,sec})}));
 const SETNAME=Object.fromEntries(WORDSETS.map(s=>[s[0],s[2]]));
 const VERBS=VERBS_RAW.split("\n").map(l=>{const [b,p,pp,ru,part]=l.split("|");return{k:"v:"+b,b,p,pp,ru,part:+part}});
+function allSecs(){return [...new Set([...WORDSETS.map(x=>x[1]),...RULES.map(r=>r.sec)])].sort((a,b)=>a-b)}
 const RULE=Object.fromEntries(RULES.map(r=>[r.id,r]));
 
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1475,7 +1476,7 @@ function renderHome(){
     <div class="sheet stack">
       <div><div class="label">Ждут повторения сегодня</div><div style="margin-top:4px">Слов: <b>${p.dueW}</b> · глаголов: <b>${p.dueV}</b> · правил: <b>${RULES.filter(r=>isDue("r:"+r.id)).length}</b></div></div>
       <div><div class="label" style="margin-bottom:6px">Слова из какого раздела</div>
-      <div class="chips">${[[0,"Все"],[1,"Раздел 1"],[2,"Раздел 2"],[3,"Раздел 3"],[4,"Раздел 4"]].map(([v,l])=>`<button class="chip" data-focus="${v}" aria-pressed="${S.focus===v}">${l}</button>`).join("")}</div></div>
+      <div class="chips">${[[0,"Все"]].concat(allSecs().map(n=>[n,"Раздел "+n])).map(([v,l])=>`<button class="chip" data-focus="${v}" aria-pressed="${S.focus===v}">${l}</button>`).join("")}</div></div>
       <p class="small muted" style="margin:0">Как это работает: что ответил верно — вернётся через 1, 2, 4, 7, 14, 30 дней. Ошибся — спросит снова в этой же сессии и завтра. Новые слова идут с последних уроков. Слово считается выученным после 3 верных ответов подряд в разные дни.</p>
     </div>
     <div class="small muted"><span id="syncStatus">${statusText()}</span></div>
@@ -1486,7 +1487,7 @@ function renderRules(){
   if(sub){const r=RULE[sub];return shell(`<div class="stack"><button class="linkbtn" data-back style="align-self:flex-start">← Все правила</button>
     <div class="sheet margin rule"><div class="kind">Урок ${esc(r.unit)}</div><h2>${esc(r.title)}</h2><div class="tablewrap">${r.body}</div></div>
     <button class="btn" data-train-rule="${r.id}">Потренировать (${r.qs.length} вопросов)</button></div>`,"rules")}
-  let h="";for(let s=1;s<=4;s++){h+=`<div class="label" style="margin:14px 0 4px">Раздел ${s}</div><div class="sheet list" style="padding:4px 14px">`+RULES.filter(r=>r.sec===s).map(r=>`<button class="li" data-rule="${r.id}"><span class="u">${esc(r.unit)}</span><span class="t">${esc(r.title)}</span>${dots("r:"+r.id)}</button>`).join("")+"</div>"}
+  let h="";for(const s of allSecs()){if(!RULES.some(r=>r.sec===s))continue;h+=`<div class="label" style="margin:14px 0 4px">Раздел ${s}</div><div class="sheet list" style="padding:4px 14px">`+RULES.filter(r=>r.sec===s).map(r=>`<button class="li" data-rule="${r.id}"><span class="u">${esc(r.unit)}</span><span class="t">${esc(r.title)}</span>${dots("r:"+r.id)}</button>`).join("")+"</div>"}
   return shell(`<p class="small muted" style="margin:0 0 4px">Все правила из домашек. Нажми, чтобы открыть шпаргалку и потренировать.</p>${h}`,"rules");
 }
 function renderWords(){
@@ -1495,7 +1496,7 @@ function renderWords(){
     <div class="sheet"><div class="kind">Урок ${esc(sub)}</div><h2 style="font-family:var(--f-display);font-size:1.15rem;color:var(--ink);margin:4px 0 12px">${esc(SETNAME[sub])}</h2>
     <button class="btn" data-train-set="${esc(sub)}" style="width:100%;margin-bottom:12px">Тренировать набор</button>
     <div class="tablewrap"><table class="vt"><tbody>${ws.map(w=>`<tr><td><b>${esc(w.en)}</b> ${sayBtn(w.en)}</td><td>${esc(w.ru)}</td><td>${dots(w.k)}</td></tr>`).join("")}</tbody></table></div></div></div>`,"words")}
-  let h="";for(let s=1;s<=4;s++){h+=`<div class="label" style="margin:14px 0 4px">Раздел ${s}</div><div class="sheet list" style="padding:4px 14px">`+WORDSETS.filter(x=>x[1]===s).map(([id,,name])=>{const ws=WORDS.filter(w=>w.set===id);const l=ws.filter(w=>learned(w.k)).length;
+  let h="";for(const s of allSecs()){if(!WORDSETS.some(x=>x[1]===s))continue;h+=`<div class="label" style="margin:14px 0 4px">Раздел ${s}</div><div class="sheet list" style="padding:4px 14px">`+WORDSETS.filter(x=>x[1]===s).map(([id,,name])=>{const ws=WORDS.filter(w=>w.set===id);const l=ws.filter(w=>learned(w.k)).length;
     return `<button class="li" data-set="${esc(id)}"><span class="u">${esc(id)}</span><span class="t">${esc(name)}<div class="bar" style="max-width:160px"><i style="width:${Math.round(l/ws.length*100)}%"></i></div></span><span class="small muted">${l}/${ws.length}</span></button>`}).join("")+"</div>"}
   return shell(`<p class="small muted" style="margin:0 0 4px">Слова из Quizlet к каждому ДЗ. Номер — урок, к которому они.</p>${h}`,"words");
 }
